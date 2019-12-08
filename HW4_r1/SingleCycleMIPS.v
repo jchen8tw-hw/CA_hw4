@@ -31,6 +31,7 @@ wire [4:0] RS;
 wire [4:0] RT;
 wire [4:0] RD;
 wire [4:0] SHAMT;
+wire [31:0] SHAMT_EXT;
 wire [5:0] FUNCT;
 wire signed [15:0] IMME;
 wire signed [31:0] IMME_EXT;
@@ -45,7 +46,7 @@ wire RegWrite;
 wire MemRead;
 wire Mem2Reg;
 wire MemWrite;
-wire ALUSrc;
+wire [1:0] ALUSrc;
 wire [1:0] ALUOp;
 // ALU Control Signal
 wire [3:0] ALUCtrl;
@@ -124,21 +125,30 @@ module Ctrl(OP, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead, Mem2R
     output reg  MemRead;
     output reg  Mem2Reg;
     output reg  MemWrite;
-    output reg  ALUSrc;
+    output reg  [1:0] ALUSrc;
     output reg  [1:0] ALUOp;
 
 endmodule
 
-module ALU(ReadData1, ReadData2, SHAMT, ALUCtrl, ALUResult, Zero);
+//ALU
+//Use ALUSrc to choose between ReadData2, IMME_EXT, SHAMT_EXT
+//Use ALUCtrl to choose between different calculation(beq bne are 0110(subtract) and 0111, respectively.)
+//Output ALUResult for the result of calculation.
+//Output Zero = 1 for beq if ALUResult == 0 and for bne if ALUResult != 0
+module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult, Zero);
     input signed wire [31:0] ReadData1;
     input signed wire [31:0] ReadData2;
-    input        wire [4:0] SHAMT;
+    input        wire [31:0] SHAMT_EXT;
+    input signed wire [31:0] IMME_EXT;
+    input        wire [1:0] ALUSrc;
     input signed wire [3:0]  ALUCtrl;
     output signed reg [31:0] ALUResult;
     output wire Zero;
 
 endmodule
 
+//ALU Control
+//beq bne are 0110(subtract) and 0111, respectively.
 module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
     input wire [1:0] ALUOp;
     input wire [5:0] FUNCT;
@@ -147,10 +157,15 @@ module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
 endmodule
 
 //PC calculator
-//Use ADDR for jump address
-module IRCal(IR_addr, ADDR, Jump, JumpReg, IMME_EXT, Branch, Zero, n_IR_addr);
+//New PC = PC + 4
+//Use ADDR for jump address calculation. Use Jump in MUX.
+//Use IMME_EXT and IR_addr + 4 for branch address calculation. Use Branch & Zero in MUX.
+//Use ReadData1 for jump register address. Use JumpReg in MUX.
+//Output n_IR_addr.
+module IRCal(IR_addr, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, n_IR_addr);
     input wire [31:0] IR_addr;
     input wire [25:0] ADDR;
+    input wire [31:0] ReadData1;
     input wire Jump, JumpReg;
     input wire [31:0] IMME_EXT;
     input wire Branch, Zero;
@@ -160,8 +175,15 @@ endmodule
 
 //sign extension
 module SignExt(IMME, IMME_EXT);
-    input wire [15:0] IMME;
-    output wire [31:0] IMME_EXT;
+    input signed wire [15:0] IMME;
+    output signed wire [31:0] IMME_EXT;
+
+endmodule
+
+//unsign extension
+module UnsignExt(SHAMT, SHAMT_EXT);
+    input wire [4:0] SHAMT;
+    output wire [31:0] SHAMT_EXT;
 
 endmodule
 
