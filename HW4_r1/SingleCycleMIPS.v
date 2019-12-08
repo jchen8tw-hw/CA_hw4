@@ -32,12 +32,13 @@ wire [4:0] RT;
 wire [4:0] RD;
 wire [4:0] SHAMT;
 wire [5:0] FUNCT;
-wire [15:0] IMME;
+wire signed [15:0] IMME;
+wire signed [31:0] IMME_EXT;
 wire [25:0] ADDR;
 //Control Signals
 wire Jump;
 wire JumpReg;
-wire JumpLink;
+wire StoreRA;
 wire Branch;
 wire RegDst;
 wire RegWrite;
@@ -46,14 +47,21 @@ wire Mem2Reg;
 wire MemWrite;
 wire ALUSrc;
 wire [1:0] ALUOp;
-//
-reg [31:0] REG [0:31];
+// ALU Control Signal
+wire [3:0] ALUCtrl;
+// ALU Result
+wire signed [31:0] ALUResult;
+wire Zero;
+// Register 
+reg signed [31:0] REG [0:31];
+reg signed [31:0] n_REG [0:31];
+reg signed [31:0] ReadData1, ReadData2;
 reg [31:0] IR_addr, n_IR_addr;
-reg [31:0] Data2Mem, n_Data2Mem;
-reg [6:0] A, n_A;
-reg CEN, n_CEN;
-reg WEN, n_WEN;
-reg OEN, n_OEN;
+wire [31:0] Data2Mem;
+wire [6:0] A;
+wire CEN;
+wire WEN;
+wire OEN;
 
 //==== wire connection to submodule ======================
 //assigning instruction decoding wire
@@ -105,11 +113,11 @@ endmodule
 
 
 //	endmodule
-module ctrl(OP, Jump, JumpReg, JumpLink, Branch, RegDst, RegWrite, MemRead, Mem2Reg, MemWrite, ALUSrc, ALUOp);
+module Ctrl(OP, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead, Mem2Reg, MemWrite, ALUSrc, ALUOp);
     input  wire OP;
     output reg  Jump;
     output reg  JumpReg;
-    output reg  JumpLink;
+    output reg  StoreRA;
     output reg  Branch;
     output reg  RegDst;
     output reg  RegWrite;
@@ -121,5 +129,60 @@ module ctrl(OP, Jump, JumpReg, JumpLink, Branch, RegDst, RegWrite, MemRead, Mem2
 
 endmodule
 
-module ALU(ReadData1, ReadData2, ALUOp, FUNCT)
-		
+module ALU(ReadData1, ReadData2, SHAMT, ALUCtrl, ALUResult, Zero);
+    input signed wire [31:0] ReadData1;
+    input signed wire [31:0] ReadData2;
+    input        wire [4:0] SHAMT;
+    input signed wire [3:0]  ALUCtrl;
+    output signed reg [31:0] ALUResult;
+    output wire Zero;
+
+endmodule
+
+module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
+    input wire [1:0] ALUOp;
+    input wire [5:0] FUNCT;
+    output reg [3:0] ALUCtrl;
+
+endmodule
+
+//PC calculator
+//Use ADDR for jump address
+module IRCal(IR_addr, ADDR, Jump, JumpReg, IMME_EXT, Branch, Zero, n_IR_addr);
+    input wire [31:0] IR_addr;
+    input wire [25:0] ADDR;
+    input wire Jump, JumpReg;
+    input wire [31:0] IMME_EXT;
+    input wire Branch, Zero;
+    output reg [31:0] n_IR_addr;
+
+endmodule
+
+//sign extension
+module SignExt(IMME, IMME_EXT);
+    input wire [15:0] IMME;
+    output wire [31:0] IMME_EXT;
+
+endmodule
+
+//Read Register 1, Read Register 2, Write Register Identification 
+    //Use MUX to choose between RD, RT, and $ra (Remember to use RegDst and StoreRA in MUX!!!!)
+//Write Data(n_REG) for Register. Use MUX to choose between ReadDataMem and ALUResult 
+    //(Remember to use Mem2Reg in MUX!!!)
+//Ouput Read Data 1, Read Data 2, n_REG (update for REG will be written in top module!!!)		
+module NextRegister(REG, RS, RT, RD, RegDst, StoreRA, RegWrite, ReadDataMem, ALUResult, Mem2Reg, ReadData1, ReadData2, n_REG);
+    input signed wire [31:0] REG [0:31];
+    input        wire [4:0] RS;
+    input        wire [4:0] RT;
+    input        wire [4:0] RD;
+    input        wire RegDst;
+    input        wire StoreRA;
+    input        wire RegWrite;
+    input signed wire [31:0] ReadDataMem;
+    input signed wire [31:0] ALUResult;
+    input        wire Mem2Reg;
+    output signed reg [31:0] ReadData1;
+    output signed reg [31:0] ReadData2;
+    output signed reg [31:0] n_REG [0:31];
+
+endmodule
