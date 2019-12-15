@@ -114,8 +114,9 @@ endmodule
 
 
 //	endmodule
-module Ctrl(OP, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead, Mem2Reg, MemWrite, ALUSrc, ALUOp);
+module Ctrl(OP, FUNCT, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead, Mem2Reg, MemWrite, ALUSrc, ALUOp,CEN ,OEN, WEN);
     input  wire OP;
+    input  wire [5:0] FUNCT;
     output reg  Jump;
     output reg  JumpReg;
     output reg  StoreRA;
@@ -127,10 +128,214 @@ module Ctrl(OP, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead, Mem2R
     output reg  MemWrite;
     output reg  [1:0] ALUSrc;
     output reg  [1:0] ALUOp;
+    output reg CEN;
+    output reg OEN;
+    output reg WEN;
+    //default for op code 6bit zero
+    parameter R_FORMAT = 6'h0;
+    parameter ADDI = 6'h8;
+    parameter BEQ = 6'h4;
+    parameter BNE = 6'h5;
+    parameter JMP = 6'h2;
+    parameter JAL = 6'h3;
+    parameter LW = 6'h23;
+    parameter SW = 6'h2B;
+    //FP not implement yet
+    always@(*)begin
+        case(OP)
+        //r format
+        R_FORMAT: begin
+            RegDst = 1'b1;
+            Jump = 1'b0;
+            Branch = 1'b0;
+            RegWrite = 1'b1;
+            MemRead = 1'b0;
+            Mem2Reg = 1'b0;
+            //Jump register
+            if(FUNCT == 6'h8)
+                JumpReg = 1'b1;
+            else 
+                JumpReg = 1'b0;
+            
+            StoreRA = 1'b0;
+            MemWrite = 1'b0;
+            if(FUNCT == 6'h0 || FUNCT == 6'h2)
+                //shammt ext
+                ALUSrc = 2'b11;
+            else
+                //read data 2
+                ALUSrc = 2'b00;
+            ALUOp = 2'b10;
+            CEN = 1'b1;
+            //OEN WEN should be reverse
+            //but since CEN is disabled
+            //OEN WEN could be either 1 0 or 0 1
+            OEN = 1'b0;
+            WEN = 1'b1;
+        end
+        ADDI: begin
+            //no rd
+            RegDst = 1'b0;
+            Jump = 1'b0;
+            Branch = 1'b0;
+            RegWrite = 1'b1;
+            MemRead = 1'b0;
+            Mem2Reg = 1'b0;
+            JumpReg = 1'b0;
+            StoreRA = 1'b0;
+            MemWrite = 1'b0;
+            ALUSrc = 2'b01;
+            ALUOp = 2'b10;
+            CEN = 1'b1;
+            //OEN WEN should be reverse
+            //but since CEN is disabled
+            //OEN WEN could be either 1 0 or 0 1
+            OEN = 1'b0;
+            WEN = 1'b1;     
+        end
+        BEQ: begin
+            //RegDst is don't care
+            RegDst = 1'b0;
+            Jump = 1'b0;
+            Branch = 1'b1;
+            RegWrite = 1'b0;
+            MemRead = 1'b0;
+            //Dont care
+            Mem2Reg = 1'b0;
+            JumpReg = 1'b0;
+            StoreRA = 1'b0;
+            MemWrite = 1'b0;
+            ALUSrc = 2'b00;
+            ALUOp = 2'b01;
+            CEN = 1'b1;
+            //OEN WEN should be reverse
+            //but since CEN is disabled
+            //OEN WEN could be either 1 0 or 0 1
+            OEN = 1'b0;
+            WEN = 1'b1; 
+        end
+        BNE: begin
+            //RegDst is don't care
+            RegDst = 1'b0;
+            Jump = 1'b0;
+            Branch = 1'b1;
+            RegWrite = 1'b0;
+            MemRead = 1'b0;
+            //Dont care
+            Mem2Reg = 1'b0;
+            JumpReg = 1'b0;
+            StoreRA = 1'b0;
+            MemWrite = 1'b0;
+            ALUSrc = 2'b00;
+            //ALUOP == 11 if BNE
+            ALUOp = 2'b11;
+            CEN = 1'b1;
+            //OEN WEN should be reverse
+            //but since CEN is disabled
+            //OEN WEN could be either 1 0 or 0 1
+            OEN = 1'b0;
+            WEN = 1'b1; 
+        end
+        JMP: begin
+            RegDst = 1'b0;
+            Jump = 1'b1;
+            Branch = 1'b0;
+            RegWrite = 1'b0;
+            MemRead = 1'b0;
+            //Dont care
+            Mem2Reg = 1'b0;
+            JumpReg = 1'b0;
+            StoreRA = 1'b0;
+            MemWrite = 1'b0;
+            //Dont care
+            ALUSrc = 2'b00;
+            ALUOp = 2'b00;
+            CEN = 1'b1;
+            //OEN WEN should be reverse
+            //but since CEN is disabled
+            //OEN WEN could be either 1 0 or 0 1
+            OEN = 1'b0;
+            WEN = 1'b1;
+        end
+        JAL: begin
+            RegDst = 1'b0;
+            Jump = 1'b1;
+            Branch = 1'b0;
+            //true to store $ra
+            RegWrite = 1'b1;
+            StoreRA = 1'b1;
+            MemRead = 1'b0;
+            //Dont care
+            Mem2Reg = 1'b0;
+            JumpReg = 1'b0;
+            MemWrite = 1'b0;
+            //Dont care
+            ALUSrc = 2'b00;
+            ALUOp = 2'b00;
+            CEN = 1'b1;
+            //OEN WEN should be reverse
+            //but since CEN is disabled
+            //OEN WEN could be either 1 0 or 0 1
+            OEN = 1'b0;
+            WEN = 1'b1;
+        end
+        LW: begin
+            RegDst = 1'b0;
+            Jump = 1'b0;
+            Branch = 1'b0;
+            RegWrite = 1'b1;
+            MemRead = 1'b0;
+            Mem2Reg = 1'b1;
+            JumpReg = 1'b0;
+            StoreRA = 1'b0;
+            MemWrite = 1'b0;
+            ALUSrc = 2'b01;
+            ALUOp = 2'b00;
+            CEN = 1'b0;
+            OEN = 1'b1;
+            WEN = 1'b0; 
+        end
+        SW: begin
+            RegDst = 1'b0;
+            Jump = 1'b0;
+            Branch = 1'b0;
+            RegWrite = 1'b0;
+            MemRead = 1'b0;
+            Mem2Reg = 1'b0;
+            JumpReg = 1'b0;
+            StoreRA = 1'b0;
+            MemWrite = 1'b1;
+            ALUSrc = 2'b01;
+            ALUOp = 2'b00;
+            CEN = 1'b0;
+            OEN = 1'b1;
+            WEN = 1'b0;
+        end
+        default: begin
+            //default case
+            RegDst = 1'b0;
+            Jump = 1'b0;
+            Branch = 1'b0;
+            RegWrite = 1'b0;
+            MemRead = 1'b0;
+            Mem2Reg = 1'b0;
+            JumpReg = 1'b0;
+            StoreRA = 1'b0;
+            MemWrite = 1'b0;
+            ALUSrc = 2'b00;
+            ALUOp = 2'b00;
+            CEN = 1'b1;
+            OEN = 1'b1;
+            WEN = 1'b0;
+        end
+        endcase
+    end
+    
 
 endmodule
 
 //ALU
+//                             00          01         11
 //Use ALUSrc to choose between ReadData2, IMME_EXT, SHAMT_EXT
 //Use ALUCtrl to choose between different calculation(beq bne are 0110(subtract) and 0111, respectively.)
 //Output ALUResult for the result of calculation.
@@ -144,15 +349,82 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
     input signed wire [3:0]  ALUCtrl;
     output signed reg [31:0] ALUResult;
     output wire Zero;
-
+    always@(*) begin
+        wire [31:0]SecondData;
+        case(ALUSrc)
+            2'b00:
+                SecondData = ReadData2;
+            2'b01:
+                SecondData = IMME_EXT;
+            2'b11:
+                SecondData = SHAMT_EXT;
+            default:
+                SecondData = 32'b0;
+        endcase
+        case(ALUCtrl)
+            4'b0000:
+                ALUResult = ReadData1 & SecondData;
+            4'b0001:
+                ALUResult = ReadData1 | SecondData;
+            4'b0010:
+                ALUResult = ReadData1 + SecondData;
+            4'b0110:
+                ALUResult = ReadData1 - SecondData;
+            4'b0111:
+                ALUResult = ReadData1 - SecondData;
+            4'b1100:
+                ALUResult = ~(ReadData1 | SecondData);
+            default:
+                ALUResult = 32'b0
+        endcase
+        if(ReadData1 - SecondData == 0)
+            Zero = (ALUCtrl[4]) ? 1'b0 :1'b1;
+        else
+            Zero = (ALUCtrl[4]) ? 1'b1 :1'b0;
+    end
 endmodule
 
 //ALU Control
-//beq bne are 0110(subtract) and 0111, respectively.
+//ALUOP == 11 if BNE == 01 if BEQ
+//ALUCtrl  =  0110(subtract) and 0111,for beq bne respectively.
 module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
     input wire [1:0] ALUOp;
     input wire [5:0] FUNCT;
     output reg [3:0] ALUCtrl;
+    always@(*) begin
+        case(ALUOP)
+            2'b00:
+                ALUCtrl = 4'b0010
+            2'b01:
+                ALUCtrl = 4'b0110
+            2'b10: begin
+                case(FUNCT)
+                    6'b100000:
+                        ALUCtrl = 4'b0010
+                    6'b100010:
+                        ALUCtrl = 4'b0110
+                    6'b100100:
+                        ALUCtrl = 4'b0000
+                    6'b100101:
+                        ALUCtrl = 4'b0001
+                    6'101010:
+                        ALUCtrl = 4'b0111
+                    default: begin
+                        //default case
+                        ALUCtrl = 4'b0000
+                    end
+                endcase
+            end
+            2'b11: begin
+                //bne
+                ALUCtrl = 4'b0111
+            end
+            default: begin
+                //default case all zero
+                ALUCtrl = 4'b0000
+            end
+        endcase
+    end
 
 endmodule
 
@@ -184,7 +456,9 @@ endmodule
 module UnsignExt(SHAMT, SHAMT_EXT);
     input wire [4:0] SHAMT;
     output wire [31:0] SHAMT_EXT;
-
+    for(i=5;i<=31;i=i+1)
+        SHAMT_EXT[i] = 1'b0
+    SHAMT_EXT[4:0] = SHAMT
 endmodule
 
 //Read Register 1, Read Register 2, Write Register Identification 
