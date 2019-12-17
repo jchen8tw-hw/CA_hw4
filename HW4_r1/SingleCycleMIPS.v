@@ -83,7 +83,7 @@ assign ADDR = IR[25:0];
 //
 assign WriteRegister = (RegDst)? RD : (StoreRA)? 5'b11111 : RT;
 assign WriteData = (Mem2Reg)? ReadDataMem : (StoreRA)? IR_addr_plus_4 : ALUResult;
-assign A = ALUResult[6:0];
+assign A = ALUResult[8:2];
 //Example:
 //	ctrl control(
 //	.clk(clk),
@@ -382,8 +382,8 @@ module Ctrl(OP, FUNCT, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead
             ALUSrc = 2'b01;
             ALUOp = 2'b00;
             CEN = 1'b0;
-            OEN = 1'b1;
-            WEN = 1'b0; 
+            OEN = 1'b0;
+            WEN = 1'b1; 
         end
         SW: begin
             RegDst = 1'b0;
@@ -434,10 +434,10 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
     input        wire [1:0] ALUSrc;
     input wire signed [3:0]  ALUCtrl;
     output reg signed [31:0] ALUResult;
-    output wire Zero;
-    reg [31:0] SecondData;
+    output       wire Zero;
+    reg        signed [31:0] SecondData;
     
-    assign Zero = (ReadData1 == SecondData)? ((ALUCtrl[4]) ? 1'b1 :1'b0) : ((ALUCtrl[4]) ? 1'b0 :1'b1);
+    assign Zero = (ReadData1 == SecondData)? ((ALUCtrl[0]) ? 1'b0 : 1'b1) : ((ALUCtrl[0]) ? 1'b1 :1'b0);
     always@(*) begin
         case(ALUSrc)
             2'b00:
@@ -459,7 +459,11 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
             4'b0110:
                 ALUResult = ReadData1 - SecondData;
             4'b0111:
-                ALUResult = Zero;
+                if(ReadData1 - SecondData < 0)begin
+                    ALUResult = 32'd1;
+                end else begin
+                    ALUResult = 32'd0;
+                end
             4'b1100:
                 ALUResult = ~(ReadData1 | SecondData);
             4'b1111:
@@ -547,7 +551,7 @@ module IRCal(IR_addr, IR_addr_plus_4, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, 
     assign IMME_EXT_Shift_2 = {IMME_EXT[29:0], 2'b00};
     assign Jump_addr = {IR_addr[31:28], ADDR, 2'b00};
     assign Branch_addr = IMME_EXT_Shift_2 + IR_addr_plus_4;
-    assign n_IR_addr = (Jump | JumpReg)? ((Jump)? Jump_addr : ReadData1) : ((Branch & Zero)? IMME_EXT : IR_addr_plus_4);
+    assign n_IR_addr = (Jump | JumpReg)? ((Jump)? Jump_addr : ReadData1) : ((Branch & Zero)? Branch_addr : IR_addr_plus_4);
     
 
 endmodule
