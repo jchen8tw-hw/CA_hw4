@@ -58,6 +58,7 @@ reg signed [31:0] REG [0:31];
 reg signed [31:0] n_REG [0:31];
 reg  [31:0] IR_addr;
 wire [31:0] n_IR_addr;
+wire [31:0] IR_addr_plus_4;
 wire signed [31:0] ReadData1, ReadData2;
 wire [31:0] Data2Mem;
 wire [6:0] A;
@@ -81,7 +82,7 @@ assign IMME = IR[15:0];
 assign ADDR = IR[25:0];
 //
 assign WriteRegister = (RegDst)? RD : (StoreRA)? 5'b11111 : RT;
-assign WriteData = (Mem2Reg)? ReadDataMem : ALUResult;
+assign WriteData = (Mem2Reg)? ReadDataMem : (StoreRA)? IR_addr_plus_4 : ALUResult;
 assign A = ALUResult[6:0];
 //Example:
 //	ctrl control(
@@ -127,7 +128,8 @@ ALUCtrl alucontrol(
 );
 
 IRCal PC(
-    .IR_addr(IR_addr), 
+    .IR_addr(IR_addr),
+    .IR_addr_plus_4(IR_addr_plus_4), 
     .ADDR(ADDR), 
     .Jump(Jump), 
     .JumpReg(JumpReg), 
@@ -150,7 +152,7 @@ UnsignExt unsign_extension(
 
 //==== combinational part =================================
 
-assign ReadData1 = REG[RS];
+assign ReadData1 = (OP == 0 && (FUNCT == 0 || FUNCT == 2))? REG[RT] : REG[RS];
 assign ReadData2 = REG[RT];
 assign Data2Mem  = REG[RT];
 always@(*)begin
@@ -235,15 +237,16 @@ module Ctrl(OP, FUNCT, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead
             RegDst = 1'b1;
             Jump = 1'b0;
             Branch = 1'b0;
-            RegWrite = 1'b1;
             MemRead = 1'b0;
             Mem2Reg = 1'b0;
             //Jump register
-            if(FUNCT == 6'h8)
+            if(FUNCT == 6'h08) begin
                 JumpReg = 1'b1;
-            else 
+                RegWrite = 1'b0;
+            end else begin
                 JumpReg = 1'b0;
-            
+                RegWrite = 1'b1;
+            end
             StoreRA = 1'b0;
             MemWrite = 1'b0;
             if(FUNCT == 6'h0 || FUNCT == 6'h2)
@@ -272,7 +275,7 @@ module Ctrl(OP, FUNCT, Jump, JumpReg, StoreRA, Branch, RegDst, RegWrite, MemRead
             StoreRA = 1'b0;
             MemWrite = 1'b0;
             ALUSrc = 2'b01;
-            ALUOp = 2'b10;
+            ALUOp = 2'b00;
             CEN = 1'b1;
             //OEN WEN should be reverse
             //but since CEN is disabled
@@ -434,7 +437,7 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
     output wire Zero;
     reg [31:0] SecondData;
     
-    assign Zero = (ReadData1 - SecondData)? ((ALUCtrl[4]) ? 1'b1 :1'b0) : ((ALUCtrl[4]) ? 1'b0 :1'b1);
+    assign Zero = (ReadData1 == SecondData)? ((ALUCtrl[4]) ? 1'b1 :1'b0) : ((ALUCtrl[4]) ? 1'b0 :1'b1);
     always@(*) begin
         case(ALUSrc)
             2'b00:
@@ -493,11 +496,11 @@ module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
                         ALUCtrl = 4'b0001;
                     6'b101010:
                         ALUCtrl = 4'b0111;
-                    6'h0: begin
+                    6'h00: begin
                     //shift left logical
                         ALUCtrl = 4'b1111;
                     end
-                    6'h2:begin
+                    6'h02:begin
                     ////shift right logical
                         ALUCtrl = 4'b1110;
                     end
@@ -526,8 +529,9 @@ endmodule
 //Use IMME_EXT and IR_addr + 4 for branch address calculation. Use Branch & Zero in MUX.
 //Use ReadData1 for jump register address. Use JumpReg in MUX.
 //Output n_IR_addr.
-module IRCal(IR_addr, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, n_IR_addr);
-    input wire [31:0] IR_addr;
+module IRCal(IR_addr, IR_addr_plus_4, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, n_IR_addr);
+    input wire [31:0] IR_addr;  
+    input wire [31:0] IR_addr_plus_4; // for PC + 4
     input wire [25:0] ADDR;
     input wire [31:0] ReadData1;
     input wire Jump, JumpReg;
@@ -536,7 +540,6 @@ module IRCal(IR_addr, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, n_
     output wire [31:0] n_IR_addr;
     
     wire [31:0] IMME_EXT_Shift_2; //for byte address of branch address
-    wire [31:0] IR_addr_plus_4; // for PC + 4
     wire [31:0] Jump_addr;  // jump address
     wire [31:0] Branch_addr; // Branch address = PC + 4 + IMME_EXT_Shift_2
 
