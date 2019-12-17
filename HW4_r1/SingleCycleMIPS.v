@@ -64,6 +64,7 @@ wire CEN;
 wire WEN;
 wire OEN;
 
+integer i;
 //==== wire connection to submodule ======================
 //assigning instruction decoding wire
 assign OP = IR[31:26];
@@ -81,6 +82,7 @@ assign ADDR = IR[25:0];
 
 //	);
 
+
 //==== combinational part =================================
 
 always@(*)begin
@@ -93,8 +95,17 @@ end
 
 //==== sequential part ====================================
 always@(posedge clk)begin
-	
-
+    if(rst_n)begin
+        for(i = 0; i <= 31; i = i + 1)begin
+            REG[i] <= 32'd0;
+        end
+        IR_addr <= 32'd0;
+    end else begin
+        for(i = 0; i <= 31; i = i + 1)begin
+            REG[i] <= n_REG[i];
+        end
+        IR_addr <= n_IR_addr;
+    end
 end
 
 endmodule
@@ -169,7 +180,18 @@ module IRCal(IR_addr, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, n_
     input wire Jump, JumpReg;
     input wire [31:0] IMME_EXT;
     input wire Branch, Zero;
-    output reg [31:0] n_IR_addr;
+    output wire [31:0] n_IR_addr;
+    
+    wire [31:0] = IMME_EXT_Shift_2;
+    wire [31:0] IR_addr_plus_4;
+    wire [31:0] Jump_addr;
+    wire [31:0] Branch_addr;
+    assign IR_addr_plus_4 = IR_addr + 4;
+    assign IMME_EXT_Shift_2 = {IMME_EXT[29:0], 2'b00};
+    assign Jump_addr = {IR_addr[31:28], ADDR, 2'b00};
+    assign Branch_addr = IMME_EXT_Shift_2 + IR_addr_plus_4;
+    assign n_IR_addr = (Jump | JumpReg)? (Jump)? Jump_addr : ReadData1 : (Branch & Zero) IMME_EXT : IR_addr_plus_4;
+    
 
 endmodule
 
@@ -177,6 +199,7 @@ endmodule
 module SignExt(IMME, IMME_EXT);
     input signed wire [15:0] IMME;
     output signed wire [31:0] IMME_EXT;
+    assign IMME_EXT = {IMME[15], IMME};
 
 endmodule
 
@@ -184,7 +207,7 @@ endmodule
 module UnsignExt(SHAMT, SHAMT_EXT);
     input wire [4:0] SHAMT;
     output wire [31:0] SHAMT_EXT;
-
+    
 endmodule
 
 //Read Register 1, Read Register 2, Write Register Identification 
@@ -206,5 +229,23 @@ module NextRegister(REG, RS, RT, RD, RegDst, StoreRA, RegWrite, ReadDataMem, ALU
     output signed reg [31:0] ReadData1;
     output signed reg [31:0] ReadData2;
     output signed reg [31:0] n_REG [0:31];
+
+    wire [4:0] WriteRegister;
+    wire [31:0] WriteData;
+    integer num;
+
+    assign WriteRegister = (RegDst)? RD : (StoreRA)? 5'b11111 : RT;
+    assign WriteData = (Mem2Reg)? ReadDataMem : ALUResult;
+    always(*)begin
+        ReadData1 = REG[RS];
+        ReadData2 = REG[RT];
+        for(num = 0; num <= 31; num = num + 1)begin
+            if(num == WriteRegister && RegWrite == 1'b1)begin
+                n_REG[num] = WriteData;
+            end else begin
+                n_REG[num] = REG[num];
+            end
+        end
+    end
 
 endmodule
