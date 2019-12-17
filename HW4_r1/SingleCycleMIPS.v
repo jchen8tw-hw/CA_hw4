@@ -359,7 +359,7 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
             2'b11:
                 SecondData = SHAMT_EXT;
             default:
-                SecondData = 32'b0;
+                SecondData = 32'bX;
         endcase
         case(ALUCtrl)
             4'b0000:
@@ -374,8 +374,12 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
                 ALUResult = ReadData1 - SecondData;
             4'b1100:
                 ALUResult = ~(ReadData1 | SecondData);
+            4'b1111:
+                ALUResult = ReadData1 << SecondData;
+            4'b1110:
+                ALUResult = ReadData1 >> SecondData;
             default:
-                ALUResult = 32'b0
+                ALUResult = 32'bX;
         endcase
         if(ReadData1 - SecondData == 0)
             Zero = (ALUCtrl[4]) ? 1'b0 :1'b1;
@@ -387,6 +391,7 @@ endmodule
 //ALU Control
 //ALUOP == 11 if BNE == 01 if BEQ
 //ALUCtrl  =  0110(subtract) and 0111,for beq bne respectively.
+//ALUCtrl = 1111(sll) 1110(srl)
 module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
     input wire [1:0] ALUOp;
     input wire [5:0] FUNCT;
@@ -394,34 +399,42 @@ module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
     always@(*) begin
         case(ALUOP)
             2'b00:
-                ALUCtrl = 4'b0010
+                ALUCtrl = 4'b0010;
             2'b01:
-                ALUCtrl = 4'b0110
+                ALUCtrl = 4'b0110;
             2'b10: begin
                 case(FUNCT)
                     6'b100000:
-                        ALUCtrl = 4'b0010
+                        ALUCtrl = 4'b0010;
                     6'b100010:
-                        ALUCtrl = 4'b0110
+                        ALUCtrl = 4'b0110;
                     6'b100100:
-                        ALUCtrl = 4'b0000
+                        ALUCtrl = 4'b0000;
                     6'b100101:
-                        ALUCtrl = 4'b0001
-                    6'101010:
-                        ALUCtrl = 4'b0111
+                        ALUCtrl = 4'b0001;
+                    6'b101010:
+                        ALUCtrl = 4'b0111;
+                    6'h0: begin
+                    //shift left logical
+                        ALUCtrl = 4'b1111;
+                    end
+                    6'h2:begin
+                    ////shift right logical
+                        ALUCtrl = 4'b1110;
+                    end
                     default: begin
                         //default case
-                        ALUCtrl = 4'b0000
+                        ALUCtrl = 4'bXXXX;
                     end
                 endcase
             end
             2'b11: begin
                 //bne
-                ALUCtrl = 4'b0111
+                ALUCtrl = 4'b0111;
             end
             default: begin
                 //default case all zero
-                ALUCtrl = 4'b0000
+                ALUCtrl = 4'bXXXX;
             end
         endcase
     end
@@ -457,8 +470,8 @@ module UnsignExt(SHAMT, SHAMT_EXT);
     input wire [4:0] SHAMT;
     output wire [31:0] SHAMT_EXT;
     for(i=5;i<=31;i=i+1)
-        SHAMT_EXT[i] = 1'b0
-    SHAMT_EXT[4:0] = SHAMT
+        SHAMT_EXT[i] = 1'b0;
+    SHAMT_EXT[4:0] = SHAMT;
 endmodule
 
 //Read Register 1, Read Register 2, Write Register Identification 
