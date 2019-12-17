@@ -383,8 +383,6 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
                 ALUResult = ReadData1 - SecondData;
             4'b0111:
                 ALUResult = ReadData1 - SecondData;
-            4'b1100:
-                ALUResult = ~(ReadData1 | SecondData);
             4'b1111:
                 ALUResult = ReadData1 << SecondData;
             4'b1110:
