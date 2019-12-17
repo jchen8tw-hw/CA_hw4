@@ -173,14 +173,14 @@ end
 always@(posedge clk)begin
     if(rst_n)begin
         for(i = 0; i <= 31; i = i + 1)begin
-            REG[i] <= 32'd0;
-        end
-        IR_addr <= 32'd0;
-    end else begin
-        for(i = 0; i <= 31; i = i + 1)begin
             REG[i] <= n_REG[i];
         end
         IR_addr <= n_IR_addr;
+    end else begin
+        for(i = 0; i <= 31; i = i + 1)begin
+            REG[i] <= 32'd0;
+        end
+        IR_addr <= 32'd0;
     end
 end
 
@@ -456,7 +456,7 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ALUResult
             4'b0110:
                 ALUResult = ReadData1 - SecondData;
             4'b0111:
-                ALUResult = ReadData1 - SecondData;
+                ALUResult = Zero;
             4'b1100:
                 ALUResult = ~(ReadData1 | SecondData);
             4'b1111:
