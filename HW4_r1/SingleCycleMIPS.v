@@ -484,7 +484,7 @@ module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
     output reg [3:0] ALUCtrl;
     reg        [7:0] Concat;
     always@(*) begin
-        Concat = {ALUOP,FUNCT};
+        Concat = {ALUOp,FUNCT};
         casex(Concat)
             8'b00xxxxxx:
                 ALUCtrl = 4'b0010;
