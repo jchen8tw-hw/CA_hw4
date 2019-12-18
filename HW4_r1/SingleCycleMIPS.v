@@ -129,7 +129,6 @@ ALUCtrl alucontrol(
 
 IRCal PC(
     .IR_addr(IR_addr),
-    .IR_addr_plus_4(IR_addr_plus_4), 
     .ADDR(ADDR), 
     .Jump(Jump), 
     .JumpReg(JumpReg), 
@@ -137,6 +136,7 @@ IRCal PC(
     .IMME_EXT(IMME_EXT), 
     .Branch(Branch), 
     .Zero(Zero), 
+    .IR_addr_plus_4(IR_addr_plus_4), 
     .n_IR_addr(n_IR_addr)
     );
 
@@ -484,7 +484,7 @@ module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
     output reg [3:0] ALUCtrl;
     reg        [7:0] Concat;
     always@(*) begin
-        Concat = {ALUOP,FUNCT};
+        Concat = {ALUOp,FUNCT};
         casex(Concat)
             8'b00xxxxxx:
                 ALUCtrl = 4'b0010;
@@ -523,14 +523,14 @@ endmodule
 //Use IMME_EXT and IR_addr + 4 for branch address calculation. Use Branch & Zero in MUX.
 //Use ReadData1 for jump register address. Use JumpReg in MUX.
 //Output n_IR_addr.
-module IRCal(IR_addr, IR_addr_plus_4, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, n_IR_addr);
+module IRCal(IR_addr, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, IR_addr_plus_4, n_IR_addr);
     input wire [31:0] IR_addr;  
-    input wire [31:0] IR_addr_plus_4; // for PC + 4
     input wire [25:0] ADDR;
     input wire [31:0] ReadData1;
     input wire Jump, JumpReg;
     input wire [31:0] IMME_EXT;
     input wire Branch, Zero;
+    output wire [31:0] IR_addr_plus_4; // for PC + 4
     output wire [31:0] n_IR_addr;
     
     wire [31:0] IMME_EXT_Shift_2; //for byte address of branch address
