@@ -482,39 +482,29 @@ module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
     input wire [1:0] ALUOp;
     input wire [5:0] FUNCT;
     output reg [3:0] ALUCtrl;
+    reg        [7:0] Concat;
     always@(*) begin
-        case(ALUOp)
-            2'b00:
+        Concat = {ALUOP,FUNCT};
+        casex(Concat)
+            8'b00xxxxxx:
                 ALUCtrl = 4'b0010;
-            2'b01:
+            8'b01xxxxxx:
                 ALUCtrl = 4'b0110;
-            2'b10: begin
-                case(FUNCT)
-                    6'b100000:
-                        ALUCtrl = 4'b0010;
-                    6'b100010:
-                        ALUCtrl = 4'b0110;
-                    6'b100100:
-                        ALUCtrl = 4'b0000;
-                    6'b100101:
-                        ALUCtrl = 4'b0001;
-                    6'b101010:
-                        ALUCtrl = 4'b0111;
-                    6'h00: begin
-                    //shift left logical
-                        ALUCtrl = 4'b1111;
-                    end
-                    6'h02:begin
-                    ////shift right logical
-                        ALUCtrl = 4'b1110;
-                    end
-                    default: begin
-                        //default case
-                        ALUCtrl = 4'bXXXX;
-                    end
-                endcase
-            end
-            2'b11: begin
+            8'b10100000:
+                ALUCtrl = 4'b0010;
+            8'b10100010:
+                ALUCtrl = 4'b0110;
+            8'b10100100:
+                ALUCtrl = 4'b0000;
+            8'b10100101:
+                ALUCtrl = 4'b0001;
+            8'b10101010:
+                ALUCtrl = 4'b0111;
+            8'b10000000:
+                ALUCtrl = 4'b1111;
+            8'b10000010:
+                ALUCtrl = 4'b1110;         
+            8'b11xxxxxx: begin
                 //bne
                 ALUCtrl = 4'b0111;
             end
