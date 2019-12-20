@@ -170,7 +170,8 @@ ALU alu(
     .ReadData1(ReadData1), 
     .ReadData2(ReadData2), 
     .SHAMT_EXT(SHAMT_EXT),
-    .IMME_EXT(IMME_EXT), 
+    .IMME_EXT(IMME_EXT),
+    .FPCond(FPCond), 
     .ALUSrc(ALUSrc), 
     .ALUCtrl(ALUCtrl), 
     .ADDResultFPS(ADDResultFPS),
@@ -755,13 +756,15 @@ endmodule
 // Needs ADDResultFPS, ADDResultFPD, SUBResultFPS, SUBResultFPD, MULResultFPS, DIVResultFPS for FP ALU
 // Needs ALUResultForDoubleLST for the LST 32 bits of Double FP ALU
 // If FPREG[FS] == FPREG[FT] and the instruction is c.eq.s, ALUResult = 1;
+// Zero has different criterion for bclt
 // remember to define ALUResultForDoubleLST for INT instruction
 // TODO
-module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ADDResultFPS, SUBResultFPS, MULResultFPS, DIVResultFPS, ADDResultFPD, SUBResultFPD, ALUResult, ALUResultForDoubleLST, Zero);
+module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, FPCond, ALUSrc, ALUCtrl, ADDResultFPS, SUBResultFPS, MULResultFPS, DIVResultFPS, ADDResultFPD, SUBResultFPD, ALUResult, ALUResultForDoubleLST, Zero);
     input wire signed [31:0] ReadData1;
     input wire signed [31:0] ReadData2;
     input        wire [31:0] SHAMT_EXT;
     input wire signed [31:0] IMME_EXT;
+    input        wire FPCond;
     input        wire [1:0]  ALUSrc;
     input wire signed [3:0]  ALUCtrl;
     input        wire [31:0] ADDResultFPS;
