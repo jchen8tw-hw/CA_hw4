@@ -283,8 +283,9 @@ assign Data2Mem  = (FP)? (DoubleStage2)? FPREG[RT+1] : FPREG[RT] : REG[RT];
 // Important!!!
 // If FP is 1, then we should write FPREG instead, so we should use FD instead 
 // (We don't need FT since RT is used for lwdl and lwcl)
-assign WriteRegister = (RegDst)? (FP)? FD : RD : (StoreRA)? 5'b11111 : RT;
-assign WriteData = (Mem2Reg)? ReadDataMem : (StoreRA)? IR_addr_plus_4 : ALUResult;
+// If Doublestage 2 is 1, then we should write RT+1 with ALUResultforDoubleLST
+assign WriteRegister = (RegDst)? (FP)? FD : RD : (StoreRA)? 5'b11111 : (DoubleStage2)? RT + 1 : RT;
+assign WriteData = (Mem2Reg)? ReadDataMem : (StoreRA)? IR_addr_plus_4 : (DoubleStage2)? ALUResultForDoubleLST : ALUResult;
 assign A = (DoubleStage2)? ALUResult[8:2] + 1 : ALUResult[8:2];
 
 always@(*)begin
