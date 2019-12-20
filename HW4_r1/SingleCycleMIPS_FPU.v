@@ -756,7 +756,7 @@ endmodule
 // Needs ADDResultFPS, ADDResultFPD, SUBResultFPS, SUBResultFPD, MULResultFPS, DIVResultFPS for FP ALU
 // Needs ALUResultForDoubleLST for the LST 32 bits of Double FP ALU
 // If FPREG[FS] == FPREG[FT] and the instruction is c.eq.s, ALUResult = 1;
-// Zero has different criterion for bclt
+// Zero has different criterion for bclt (Need to use FPCond)
 // remember to define ALUResultForDoubleLST for INT instruction
 // TODO
 module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, FPCond, ALUSrc, ALUCtrl, ADDResultFPS, SUBResultFPS, MULResultFPS, DIVResultFPS, ADDResultFPD, SUBResultFPD, ALUResult, ALUResultForDoubleLST, Zero);
