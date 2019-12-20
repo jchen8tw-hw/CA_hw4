@@ -58,6 +58,9 @@ wire [3:0] ALUCtrl;
 // ALU Result
 wire signed [31:0] ALUResult;
 wire Zero;
+// Important!!!
+// ALUResultForDoubleLST is for the last 32 bits of ALUResult of Double FP ALU
+wire [31:0] ALUResultForDoubleLST;
 // Register (INT)
 reg signed [31:0] REG [0:31];
 reg signed [31:0] n_REG [0:31];
@@ -170,14 +173,22 @@ ALU alu(
     .IMME_EXT(IMME_EXT), 
     .ALUSrc(ALUSrc), 
     .ALUCtrl(ALUCtrl), 
+    .ADDResultFPS(ADDResultFPS),
+    .SUBResultFPS(SUBResultFPS),
+    .MULResultFPS(MULResultFPS),
+    .DIVResultFPS(DIVResultFPS),
+    .ADDResultFPD(ADDResultFPD),
+    .SUBResultFPD(SUBResultFPD),
     .ALUResult(ALUResult), 
+    .ALUResultForDoubleLST(ALUResultForDoubleLST),
     .Zero(Zero)
 );
 
 ALUCtrl alucontrol(
     .ALUOp(ALUOp), 
     .FUNCT(FUNCT), 
-    .ALUCtrl(ALUCtrl)
+    .ALUCtrl(ALUCtrl),
+    .FPCondWrite(FPCondWrite)
 );
 
 IRCal PC(
@@ -189,6 +200,7 @@ IRCal PC(
     .IMME_EXT(IMME_EXT), 
     .Branch(Branch), 
     .Zero(Zero), 
+    .n_DoubleStage2(n_DoubleStage2),
     .IR_addr_plus_4(IR_addr_plus_4), 
     .n_IR_addr(n_IR_addr)
     );
@@ -284,12 +296,18 @@ always@(*)begin
         end
     end
     for(num = 0; num <= 31; num = num + 1)begin
-    // FP has to be 0 for REG to be written
-        if(num == WriteRegister && RegWrite == 1'b1 && FP == 1'b1)begin
+    // FP has to be 1 and FPCondWrite has to be 0 for FPREG to be written
+        if(num == WriteRegister && RegWrite == 1'b1 && FP == 1'b1 && FPCondWrite = 1'b0)begin
             n_FPREG[num] = WriteData;
         end else begin
             n_FPREG[num] = REG[num];
         end
+    end
+    if(FPCondWrite = 1'b1)begin
+    // FPCondWrite has to be 1 for FPREG to be written
+        n_FPCond = ALUResult[0];
+    end else begin
+        n_FPCond = FPCond;
     end
 end
 
@@ -305,6 +323,7 @@ always@(posedge clk)begin
         end
         IR_addr <= n_IR_addr;
         FPCond <= n_FPCond;
+        DoubleStage2 <= n_DoubleStage2;
     end else begin
         for(i = 0; i <= 31; i = i + 1)begin
             REG[i] <= 32'd0;
@@ -312,6 +331,7 @@ always@(posedge clk)begin
         end
         IR_addr <= 32'd0;
         FPCond <= 1'b0;
+        DoubleStage2 <= 1'b0;
     end
 end
 
@@ -333,6 +353,8 @@ endmodule
 
 //	endmodule
 // FP is 1 FRtype, lwcl, lwdl, swcl, swdl, bclt is presented (For INT instruction, FP == 0)
+// SingleOrDouble = 1 if double; otherwise , SingleOrDouble = 0
+// Use DoubleStage2 to calculate n_DoubleStage2
 // Important!!!
 // new ALUOp table
 // Instruction type    |  ALUOp
@@ -431,8 +453,6 @@ module Ctrl(OP, FUNCT, DoubleStage2, Jump, JumpReg, StoreRA, Branch, RegDst, Reg
             MemRead = 1'b0;
             Mem2Reg = 1'b0;
             JumpReg = 1'b0;
-            // RegWrite has to be 0 or else REG value will be modified
-            RegWrite = 1'b0;
             FP = 1'b1;
             StoreRA = 1'b0;
             MemWrite = 1'b0;
@@ -440,19 +460,23 @@ module Ctrl(OP, FUNCT, DoubleStage2, Jump, JumpReg, StoreRA, Branch, RegDst, Reg
             // (use ADDRESULT_S, ADDRESULT_D, SUBRESULT_S... instead)
             ALUSrc = 2'b10; 
             if(FMT == SINGLE)begin
+                RegWrite = 1'b1;
                 SingleOrDouble = 1'b0;
                 n_DoubleStage2 = 1'b0;
                 ALUOp = 3'b100;
             end else if(FMT == DOUBLE)begin
+                RegWrite = 1'b1;
                 SingleOrDouble = 1'b1;
                 // we can do FR-Type in one stage -> skip the seconf stage in order to prevent unnecessary stall.
                 n_DoubleStage2 = 1'b0;
                 ALUOp = 3'b101;
             end else if(FMT == BCLT)begin
+                RegWrite = 1'b1;
                 SingleOrDouble = 1'b0;
                 n_DoubleStage2 = 1'b0;
                 ALUOp = 3'b110;
             end else begin
+                RegWrite = 1'bx;
                 SingleOrDouble = 1'bx;
                 n_DoubleStage2 = 1'bx;
                 ALUOp = 3'bxxx;
@@ -728,8 +752,12 @@ endmodule
 //Output ALUResult for the result of calculation.
 //Output Zero = 1 for beq if ALUResult == 0 and for bne if ALUResult != 0
 // Important!!!
-// Needs ADDResultFPS, ADDResultFPD, SUBResultFPS, SUBResultFPD, MULResultFPS, DIVResultFPS
-module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ADDResultFPS, SUBResultFPS, MULResultFPS, DIVResultFPS, ADDResultFPD, SUBResultFPD, ALUResult, Zero);
+// Needs ADDResultFPS, ADDResultFPD, SUBResultFPS, SUBResultFPD, MULResultFPS, DIVResultFPS for FP ALU
+// Needs ALUResultForDoubleLST for the LST 32 bits of Double FP ALU
+// If FPREG[FS] == FPREG[FT] and the instruction is c.eq.s, ALUResult = 1;
+// remember to define ALUResultForDoubleLST for INT instruction
+// TODO
+module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ADDResultFPS, SUBResultFPS, MULResultFPS, DIVResultFPS, ADDResultFPD, SUBResultFPD, ALUResult, ALUResultForDoubleLST, Zero);
     input wire signed [31:0] ReadData1;
     input wire signed [31:0] ReadData2;
     input        wire [31:0] SHAMT_EXT;
@@ -743,6 +771,7 @@ module ALU(ReadData1, ReadData2, SHAMT_EXT, IMME_EXT, ALUSrc, ALUCtrl, ADDResult
     input        wire [63:0] ADDResultFPD;
     input        wire [63:0] SUBResultFPD;
     output reg signed [31:0] ALUResult;
+    output        reg [31:0] ALUResultForDoubleLST; // remember to define it for INT instruction
     output       wire Zero;
     reg        signed [31:0] SecondData;
     
@@ -814,11 +843,14 @@ endmodule
 //sub'n        |  1110
 //sll          |  1111
 
-module ALUCtrl(ALUOp, FUNCT, ALUCtrl);
+// FPCondWrite = 1 if the instruction is c.eq.s
+// TODO
+module ALUCtrl(ALUOp, FUNCT, ALUCtrl, FPCondWrite);
     input wire [2:0] ALUOp;
     input wire [5:0] FUNCT;
     output reg [3:0] ALUCtrl;
     reg        [7:0] Concat;
+    reg        FPCondWrite;
     always@(*) begin
         Concat = {ALUOp,FUNCT};
         casex(Concat)
@@ -868,13 +900,17 @@ endmodule
 //Use IMME_EXT and IR_addr + 4 for branch address calculation. Use Branch & Zero in MUX.
 //Use ReadData1 for jump register address. Use JumpReg in MUX.
 //Output n_IR_addr.
-module IRCal(IR_addr, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, IR_addr_plus_4, n_IR_addr);
+//Important!!!
+//Remember to stall at the first stage of lwdl and swdl
+//TODO
+module IRCal(IR_addr, ADDR, Jump, JumpReg, ReadData1, IMME_EXT, Branch, Zero, n_DoubleStage2, IR_addr_plus_4, n_IR_addr);
     input wire [31:0] IR_addr;  
     input wire [25:0] ADDR;
     input wire [31:0] ReadData1;
     input wire Jump, JumpReg;
     input wire [31:0] IMME_EXT;
     input wire Branch, Zero;
+    input wire n_DoubleStage2;
     output wire [31:0] IR_addr_plus_4; // for PC + 4
     output wire [31:0] n_IR_addr;
     
