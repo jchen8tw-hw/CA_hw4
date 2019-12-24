@@ -847,6 +847,17 @@ endmodule
 //sub'n        |  1110
 //sll          |  1111
 
+// new ALUOp table
+// Instruction type    |  ALUOp
+// lw/sw/addi          |  000
+// lwcl/lwdl/swdl/swcl |  000
+// beq                 |  001
+// R-Type              |  010
+// bne                 |  011
+// FR-type single      |  100
+// FR-type double      |  101
+// bclt                |  110
+
 // FPCondWrite = 1 if the instruction is c.eq.s
 // TODO
 module ALUCtrl(ALUOp, FUNCT, ALUCtrl, FPCondWrite);
@@ -854,46 +865,76 @@ module ALUCtrl(ALUOp, FUNCT, ALUCtrl, FPCondWrite);
     input wire [5:0] FUNCT;
     output reg [3:0] ALUCtrl;
     reg        [7:0] Concat;
-    reg        FPCondWrite;
+    output reg       FPCondWrite;
     always@(*) begin
         Concat = {ALUOp,FUNCT};
         casex(Concat)
-            8'b00xxxxxx:
-                //lw sw addi
+            9'b000xxxxxx:
+                //lw sw addi lwcl/lwdl/swdl/swcl
                 ALUCtrl = 4'b0010;
-            8'b01xxxxxx:
+            9'b001xxxxxx:
                 //beq
                 ALUCtrl = 4'b0110;
-            8'b10100000:
+            9'b010100000:
                 //add
                 ALUCtrl = 4'b0010;
-            8'b10100010:
+            9'b010100010:
                 //sub
                 ALUCtrl = 4'b0110;
-            8'b10100100:
+            9'b010100100:
                 //and
                 ALUCtrl = 4'b0000;
-            8'b10100101:
+            9'b010100101:
                 //or
                 ALUCtrl = 4'b0001;
-            8'b10101010:
+            9'b010101010:
                 //slt
                 ALUCtrl = 4'b0111;
-            8'b10000000:
+            9'b010000000:
                 //sll
                 ALUCtrl = 4'b1111;
-            8'b10000010:
+            9'b010000010:
                 //srl
                 ALUCtrl = 4'b1101;         
-            8'b11xxxxxx: begin
+            9'b011xxxxxx: begin
                 //bne
                 ALUCtrl = 4'b1110;
             end
+            //start fp part
+            9'b100000000:
+                //fp add single
+                ALUCtrl = 4'b0011;
+            9'b100000001:
+                //fp sub single
+                ALUCtrl = 4'b0100;
+            9'b100000010:
+                //fp mul single
+                ALUCtrl = 4'b1000;
+            9'b100000011:
+                //fp div single
+                ALUCtrl = 4'b1001;
+            9'b100100000:
+                //fp cmp single
+                ALUCtrl = 4'b1100;
+            9'b101000000:
+                //FR add double
+                ALUCtrl = 4'b1010;
+            9'b101000001:
+                //FR sub double
+                ALUCtrl = 4'b1011;
+            9'b110xxxxxx:
+                //bclt
+                ALUCtrl = 4'b0101;
             default: begin
-                //default case all zero
-                ALUCtrl = 4'bXXXX;
+                ALUCtrl = 4'bxxxx;
             end
         endcase
+        if (Concat[8:5] == 4'b1001) begin
+            //if instruction is c.eq.s
+            FPCondWrite = 1'b1;
+        end else begin
+            FPCondWrite = 1'b0;
+        end
     end
 
 endmodule
